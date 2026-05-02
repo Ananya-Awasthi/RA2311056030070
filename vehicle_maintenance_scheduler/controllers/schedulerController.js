@@ -1,4 +1,4 @@
-require("dotenv").config();
+
 
 const { getDepots, getVehicles } = require("../services/apiService");
 const knapsack = require("../services/knapsack");

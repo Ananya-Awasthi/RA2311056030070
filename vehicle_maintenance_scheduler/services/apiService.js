@@ -1,4 +1,4 @@
-require("dotenv").config();
+
 
 const axios = require("axios");
 
@@ -19,5 +19,7 @@ const getVehicles = async () => {
   const res = await axios.get(`${BASE_URL}/vehicles`, { headers });
   return res.data.vehicles;
 };
+
+console.log("TOKEN:", TOKEN);
 
 module.exports = { getDepots, getVehicles };
