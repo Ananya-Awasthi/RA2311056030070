@@ -14,18 +14,14 @@ exports.schedule = async (req, res) => {
     const vehicles = await getVehicles();
 
     const result = depots.map(depot => {
-
-      // ✅ SORT by efficiency (impact per hour)
       const sortedVehicles = [...vehicles].sort((a, b) => {
         return (b.Impact / b.Duration) - (a.Impact / a.Duration);
       });
 
-      // ✅ LIMIT tasks (important)
       const limit = Math.min(vehicles.length, Math.floor(depot.MechanicHours / 2));
 
 const limitedVehicles = sortedVehicles.slice(0, limit);
 
-      // ✅ APPLY KNAPSACK
       const selectedTasks = knapsack(limitedVehicles, depot.MechanicHours);
 
       return {

@@ -1,7 +1,5 @@
 Stage 1
-### API Design for Notification System
-
-#### Core Actions:
+### Core Actions
 - Fetch notifications
 - Create notifications
 - Mark as read
@@ -13,13 +11,19 @@ Stage 1
 Headers:
 Authorization: Bearer <token>
 
+Query params (optional):
+- page
+- limit
+- isRead
+
 Response:
 [
   {
     "ID": "uuid",
     "Type": "Placement",
     "Message": "Company hiring",
-    "Timestamp": "2026-04-22 17:51:18"
+    "Timestamp": "2026-04-22 17:51:18",
+    "isRead": false
   }
 ]
 
@@ -29,9 +33,9 @@ Response:
 
 Request:
 {
-  "userId": "123",
-  "type": "Result",
-  "message": "Exam result declared"
+  "studentId": "1042",
+  "Type": "Result",
+  "Message": "Exam result declared"
 }
 
 ---
@@ -44,46 +48,47 @@ Purpose:
 ---
 
 ### Real-Time Mechanism
-
-- Use WebSockets for real-time updates
-- Alternative: Server-Sent Events (SSE)
+- WebSockets (preferred) for push updates
+- SSE as simpler alternative
 
 Reason:
-- Instant delivery without polling
+- Avoid polling, instant delivery
+
 
 Stage 2
 
-### Database Choice: MongoDB
+### Choice: MongoDB
 
-Reason:
-- Handles large-scale data
+Reasons:
+- High write throughput (notifications are write-heavy)
 - Flexible schema
-- High write throughput
+- Easy horizontal scaling (sharding)
 
 ---
 
 ### Schema
 
 Notification {
-  _id,
-  userId,
-  type,
-  message,
-  isRead,
-  createdAt
+  _id: ObjectId,
+  studentId: String,
+  Type: String,        // Placement, Result, Event
+  Message: String,
+  isRead: Boolean,
+  Timestamp: Date
 }
 
 ---
 
-### Problems with scale:
-- Slow queries
-- Large data scanning
+### Scale Issues
+- Large dataset → slow scans
+- Hot users (many notifications)
 
 ---
 
-### Solution:
+### Solutions
 - Indexing
-- Partitioning (sharding)
+- Sharding by studentId
+- TTL index for old notifications (optional)
 
 Stage 3
 
@@ -95,105 +100,98 @@ ORDER BY createdAt DESC;
 
 ---
 
-### Is it accurate?
-
-Yes, but inefficient.
-
----
-
-### Why slow?
-
-- Full table scan
-- No index usage
-- Sorting large dataset
+### Issues
+- Full table scan without index
+- Sorting large result set
 
 ---
 
-### Fix
+### Fix: Composite Index
 
-Create composite index:
-
-(studentId, isRead, createdAt DESC)
+(studentId, isRead, Timestamp DESC)
 
 ---
 
-### Cost
-
-- Slightly slower writes
-- Faster reads (huge improvement)
+### Impact
+- Reads become fast (index scan)
+- Slight overhead on writes
 
 ---
 
-### About indexing every column
-
-Not effective:
-- Slows insert/update
-- Wastes storage
+### Why not index everything?
+- Increases write latency
+- Higher storage usage
 
 Stage 4
-### Problem
 
-Notifications fetched on every page load → DB overload
+### Problem
+Fetching all notifications on every load → DB overload
 
 ---
 
 ### Solutions
 
 1. Pagination
-- Fetch limited records
+- limit + page/cursor
 
 2. Caching (Redis)
-- Cache unread notifications
+- Cache unread counts / latest page
 
 3. Lazy Loading
-- Load more on scroll
+- Infinite scroll
 
 4. Background Jobs
-- Move heavy tasks out of request cycle
+- Heavy processing off the request path
 
 ---
 
-### Tradeoffs
-
-- Caching → memory usage
-- Pagination → extra API calls
-- Background jobs → complexity
+### Trade-offs
+- Cache invalidation complexity
+- Extra API calls for pagination
+- Added infra (Redis/queues)
 
 Stage 5
 
-### Problem in given code
-
-- Sequential execution (very slow)
-- Email API takes ~200ms per user
-- Not scalable for 50,000 users
+### Problem
+Sequential email sending (~200ms/user) → not scalable
 
 ---
 
-### Should DB + Email happen together?
-
-No.
-
-Reason:
-- Email can fail
-- DB should not depend on external service
+### Decision
+DB write and Email sending should be decoupled
 
 ---
 
-### Solution: Asynchronous Queue
+### Solution: Queue-based async processing
 
 Flow:
+API → Queue (Kafka/RabbitMQ) → Workers
 
-API → Queue → Worker
-
-Worker:
-- Send email
-- Save to DB
-- Push notification
+Workers:
+- Send Email
+- Persist to DB
+- Push real-time notification
 
 ---
 
 ### Benefits
+- Fast API response
+- Retry on failure
+- Horizontal scalability
 
-- Faster response
-- Retry support
-- Scalable
+
+Stage 6 
+
+### Goal
+Return top N (e.g., 10) most important notifications based on:
+1) Priority: Placement > Result > Event
+2) Recency: latest first
+
+
+- First sort by business priority (Placement > Result > Event)
+- Then by Timestamp (descending)
+- Time complexity: O(n log n)
+
+For streaming/high-volume:
+- Maintain a Min-Heap of size k (10)
+- Complexity: O(n log k)

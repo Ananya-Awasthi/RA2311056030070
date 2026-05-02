@@ -1,15 +1,11 @@
 function knapsack(tasks, maxHours) {
   const n = tasks.length;
-
-  // dp[w] = max impact for capacity w
   const dp = Array(maxHours + 1).fill(0);
 
-  // keep track of choices
   const keep = Array(n)
     .fill(0)
     .map(() => Array(maxHours + 1).fill(false));
 
-  // build dp table
   for (let i = 0; i < n; i++) {
     const { Duration, Impact } = tasks[i];
 
@@ -21,7 +17,6 @@ function knapsack(tasks, maxHours) {
     }
   }
 
-  // backtrack to find selected tasks
   let w = maxHours;
   const selected = [];
 

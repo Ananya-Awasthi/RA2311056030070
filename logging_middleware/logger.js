@@ -17,7 +17,6 @@ const log = async (stack, level, pkg, message, token) => {
       }
     );
   } catch (err) {
-    // avoid console.log (optional)
   }
 };
 
