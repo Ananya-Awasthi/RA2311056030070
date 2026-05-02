@@ -1,8 +1,10 @@
+require("dotenv").config();
+
 const { getDepots, getVehicles } = require("../services/apiService");
 const knapsack = require("../services/knapsack");
 const log = require("../../logging_middleware/logger");
 
-const TOKEN = "YOUR_TOKEN";
+const TOKEN = process.env.TOKEN;
 
 exports.schedule = async (req, res) => {
   try {
